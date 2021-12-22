@@ -1,4 +1,6 @@
-const { intValue, nullValue, boolValue } = require('./value')
+const {
+  intValue, nullValue, boolValue, strValue,
+} = require('./value')
 
 function evaluatorError(ast) {
   return {
@@ -59,6 +61,7 @@ function evaluateIfStatement(ast, initialEnvironment) {
 }
 
 // 足し算の評価をする
+// eslint-disable-next-line consistent-return
 function evaluateAdd(ast, environment) {
   const {
     result: leftResult,
@@ -69,7 +72,7 @@ function evaluateAdd(ast, environment) {
   if (leftError) {
     return { error: leftError, environment }
   }
-  if (leftResult.type !== 'IntValue') {
+  if (leftResult.type !== 'IntValue' && leftResult.type !== 'StrValue') {
     return typeError(leftResult.type, environment)
   }
   const {
@@ -81,12 +84,105 @@ function evaluateAdd(ast, environment) {
   if (rightError) {
     return { error: rightError, environment: rightEnvironment }
   }
-  if (rightResult.type !== 'IntValue') {
+  if (rightResult.type !== 'IntValue' && rightResult.type !== 'StrValue') {
     return typeError(rightResult.type, environment)
   }
-  return {
-    result: intValue(leftResult.value + rightResult.value),
+  if (rightResult.type !== 'StrValue' && rightResult.type !== 'IntValue') {
+    return typeError(rightResult.type, environment)
+  }
+  if (leftResult.type === 'IntValue' && rightResult.type === 'IntValue') {
+    return {
+      result: intValue(leftResult.value + rightResult.value),
+      environment: rightEnvironment,
+    }
+  }
+  if (leftResult.type === 'StrValue' && rightResult.type === 'StrValue') {
+    return {
+      result: strValue(leftResult.value + rightResult.value),
+      environment: rightEnvironment,
+    }
+  }
+}
+
+// 掛け算の評価
+// eslint-disable-next-line consistent-return
+function evaluateCross(ast, environment) {
+  const {
+    result: leftResult,
+    error: leftError,
+    environment: leftEnvironment,
+    // eslint-disable-next-line no-use-before-define
+  } = evaluate(ast.left, environment)
+  if (leftError) {
+    return { error: leftError, environment }
+  }
+  if (leftResult.type !== 'IntValue' && leftResult.type !== 'StrValue') {
+    return typeError(leftResult.type, environment)
+  }
+  const {
+    result: rightResult,
+    error: rightError,
     environment: rightEnvironment,
+    // eslint-disable-next-line no-use-before-define
+  } = evaluate(ast.right, leftEnvironment)
+  if (rightError) {
+    return { error: rightError, environment: rightEnvironment }
+  }
+  if (rightResult.type !== 'IntValue' && rightResult.type !== 'StrValue') {
+    return typeError(rightResult.type, environment)
+  }
+  if (rightResult.type !== 'StrValue' && rightResult.type !== 'IntValue') {
+    return typeError(rightResult.type, environment)
+  }
+  if (leftResult.type === 'IntValue' && rightResult.type === 'IntValue') {
+    return {
+      result: intValue(leftResult.value * rightResult.value),
+      environment: rightEnvironment,
+    }
+  }
+  if (leftResult.type === 'StrValue' && rightResult.type === 'StrValue') {
+    return typeError(rightError.type, environment)
+  }
+}
+
+// 割り算の評価
+// eslint-disable-next-line consistent-return
+function evaluateSlash(ast, environment) {
+  const {
+    result: leftResult,
+    error: leftError,
+    environment: leftEnvironment,
+    // eslint-disable-next-line no-use-before-define
+  } = evaluate(ast.left, environment)
+  if (leftError) {
+    return { error: leftError, environment }
+  }
+  if (leftResult.type !== 'IntValue' && leftResult.type !== 'StrValue') {
+    return typeError(leftResult.type, environment)
+  }
+  const {
+    result: rightResult,
+    error: rightError,
+    environment: rightEnvironment,
+    // eslint-disable-next-line no-use-before-define
+  } = evaluate(ast.right, leftEnvironment)
+  if (rightError) {
+    return { error: rightError, environment: rightEnvironment }
+  }
+  if (rightResult.type !== 'IntValue' && rightResult.type !== 'StrValue') {
+    return typeError(rightResult.type, environment)
+  }
+  if (rightResult.type !== 'StrValue' && rightResult.type !== 'IntValue') {
+    return typeError(rightResult.type, environment)
+  }
+  if (leftResult.type === 'IntValue' && rightResult.type === 'IntValue') {
+    return {
+      result: intValue(leftResult.value / rightResult.value),
+      environment: rightEnvironment,
+    }
+  }
+  if (leftResult.type === 'StrValue' && rightResult.type === 'StrValue') {
+    return typeError(rightError.type, environment)
   }
 }
 
@@ -309,8 +405,12 @@ function evaluate(ast, environment) {
       return evaluateIfStatement(ast, environment)
     case 'Add':
       return evaluateAdd(ast, environment)
-    case 'Remove':
+    case 'Sub':
       return evaluateRemove(ast, environment)
+    case 'Mul':
+      return evaluateCross(ast, environment)
+    case 'Div':
+      return evaluateSlash(ast, environment)
     case 'Variable':
       return {
         result: environment.variables.get(ast.name) || nullValue,
@@ -331,6 +431,11 @@ function evaluate(ast, environment) {
     case 'NullLiteral':
       return {
         result: nullValue,
+        environment,
+      }
+    case 'StrLiteral':
+      return {
+        result: strValue(ast.value),
         environment,
       }
     default:
